@@ -56,4 +56,16 @@ public class JwtUtil {
             return false;
         }
     }
+
+    public UUID getUserIdFromToken(String token) {
+        Key key = Keys.hmacShaKeyFor(secret.getBytes());
+
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return UUID.fromString(claims.get("userId", String.class));
+    }
 }

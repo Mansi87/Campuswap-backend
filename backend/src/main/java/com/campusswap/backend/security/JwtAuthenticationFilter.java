@@ -19,34 +19,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getServletPath();
+        // Skip JWT filter for WebSocket and auth endpoints
+        return path.startsWith("/ws") ||
+                path.startsWith("/api/auth") ||
+                path.startsWith("/api/test");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // Get Authorization header
         String authHeader = request.getHeader("Authorization");
 
-        // Check if header exists and starts with "Bearer "
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            // Extract token (remove "Bearer " prefix)
             String token = authHeader.substring(7);
 
-            // Validate token
-            if (jwtUtil.validateToken(token)){
+            if (jwtUtil.validateToken(token)) {
                 String email = jwtUtil.getEmailFromToken(token);
 
-                // Create authentication object
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 email, null, Collections.emptyList());
 
-                // Set authentication in Spring Security context
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
 
-        // Continue filter chain
         filterChain.doFilter(request, response);
     }
 }
