@@ -2,13 +2,20 @@ package com.campusswap.backend.service;
 
 import com.campusswap.backend.dto.ProductRequest;
 import com.campusswap.backend.dto.ProductResponse;
+import com.campusswap.backend.model.College;
 import com.campusswap.backend.model.Product;
 import com.campusswap.backend.model.User;
 import com.campusswap.backend.repository.ProductRepository;
 import com.campusswap.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -56,6 +63,112 @@ public class ProductService {
         return mapToResponse(product);
     }
 
+    // SWIPE FEED — paginated, college scoped
+    public List<ProductResponse> getFeed(String userEmail, int page, int size) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        College college = user.getCollege();
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Product> products = productRepository
+                .findFeedProducts(college, user.getId(), pageable);
+
+        // If empty → reset (user has seen everything)
+        if (products.isEmpty()) {
+            products = productRepository
+                    .findFeedProductsReset(college, user.getId(), pageable);
+        }
+
+        return products.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    // MY LISTINGS — seller's own products
+    public List<ProductResponse> getMyListings(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return productRepository
+                .findBySellerIdOrderByCreatedAtDesc(user.getId())
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    // MARK AS SOLD — only seller can do this
+    @Transactional
+    public ProductResponse markAsSold(UUID productId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        // Only seller can mark as sold
+        if (!product.getSeller().getId().equals(user.getId())) {
+            throw new RuntimeException("You are not authorized to update this product");
+        }
+
+        product.setIsSold(true);
+        product.setUpdatedAt(LocalDateTime.now());
+        product = productRepository.save(product);
+
+        return mapToResponse(product);
+    }
+
+    // DELETE PRODUCT — only seller can delete
+    @Transactional
+    public void deleteProduct(UUID productId, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        // Only seller can delete
+        if (!product.getSeller().getId().equals(user.getId())) {
+            throw new RuntimeException("You are not authorized to delete this product");
+        }
+
+        productRepository.delete(product);
+    }
+
+    public List<ProductResponse> searchProducts(
+            String userEmail,
+            String keyword,
+            String category,
+            String condition,
+            BigDecimal minPrice,
+            BigDecimal maxPrice) {
+
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Clean up keyword
+        String cleanKeyword = (keyword != null && !keyword.trim().isEmpty())
+                ? keyword.trim() : null;
+
+        //Clean up other filters
+        String cleanCategory  = (category  != null && !category.trim().isEmpty())  ? category.trim()  : null;
+        String cleanCondition = (condition != null && !condition.trim().isEmpty()) ? condition.trim() : null;
+
+        List<Product> products = productRepository.searchProducts(
+                user.getCollege(),
+                user.getId(),
+                cleanKeyword,
+                cleanCategory,
+                cleanCondition,
+                minPrice,
+                maxPrice
+        );
+
+        return products.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     private ProductResponse mapToResponse(Product product) {
         ProductResponse response = new ProductResponse();
         response.setId(product.getId().toString());
@@ -74,6 +187,7 @@ public class ProductService {
         response.setSellerId(product.getSeller().getId().toString());
         response.setSellerName(product.getSeller().getFullName());
         response.setSellerRating(product.getSeller().getRating());
+        response.setCollegeName(product.getCollege().getName());
         return response;
     }
 }

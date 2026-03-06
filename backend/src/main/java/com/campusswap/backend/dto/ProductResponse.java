@@ -21,6 +21,7 @@ public class ProductResponse {
     private String[] images;
     private Boolean isSold;
     private LocalDateTime createdAt;
+    private String collegeName;
 
     // Seller info
     private String sellerId;

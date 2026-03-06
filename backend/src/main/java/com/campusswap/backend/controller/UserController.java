@@ -1,7 +1,9 @@
 package com.campusswap.backend.controller;
 
+import com.campusswap.backend.dto.FileUploadResponse;
 import com.campusswap.backend.model.User;
 import com.campusswap.backend.repository.UserRepository;
+import com.campusswap.backend.service.FileUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -18,6 +20,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final FileUploadService fileUploadService;
 
     // Get current user profile
     @GetMapping("/profile")
@@ -103,6 +106,35 @@ public class UserController {
             Map<String, String> error = new HashMap<>();
             error.put("error", e.getMessage());
             return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+    //PROFILE PICTURE UPDATE
+    @PutMapping("/profile/photo")
+    @Transactional
+    public ResponseEntity<?> updateProfilePhoto(
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+        try {
+            User user = userRepository.findByEmail(authentication.getName())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Upload to Cloudinary
+            FileUploadResponse uploaded = fileUploadService
+                    .uploadProfilePicture(file, user.getId().toString());
+
+            // Save URL to user
+            user.setProfilePicUrl(uploaded.getUrl());
+            user.setUpdatedAt(java.time.LocalDateTime.now());
+            userRepository.save(user);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Profile picture updated successfully",
+                    "profilePicUrl", uploaded.getUrl()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 }
