@@ -2,6 +2,7 @@ package com.campusswap.backend.controller;
 
 import com.campusswap.backend.dto.ProductRequest;
 import com.campusswap.backend.dto.ProductResponse;
+import com.campusswap.backend.service.MLService;
 import com.campusswap.backend.service.ProductService;
 import org.springframework.security.core.Authentication;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class ProductController {
 
     private final ProductService productService;
+    private final MLService mlService;
 
     @PostMapping
     public ResponseEntity<ProductResponse> createProduct(
@@ -128,6 +130,33 @@ public class ProductController {
             );
             return ResponseEntity.ok(products);
         } catch (RuntimeException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{id}/recommendations")
+    public ResponseEntity<?> getRecommendations(
+            @PathVariable String id) {
+        try {
+            List<Map<String, Object>> recommendations =
+                    mlService.getRecommendations(id);
+            return ResponseEntity.ok(recommendations);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/recommendations/category")
+    public ResponseEntity<?> getRecommendationsByCategory(
+            @RequestParam String category,
+            @RequestParam(defaultValue = "5") int topN) {
+        try {
+            List<Map<String, Object>> recommendations =
+                    mlService.getRecommendationsByCategory(category, topN);
+            return ResponseEntity.ok(recommendations);
+        } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", e.getMessage()));
         }

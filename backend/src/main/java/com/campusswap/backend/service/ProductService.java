@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class ProductService {
     private final ProductRepository productRepository;
     private final UserRepository userRepository;
+    private final MLService mlService;
 
     public ProductResponse createProduct(ProductRequest request, String userEmail) {
         // Get seller
@@ -44,7 +45,17 @@ public class ProductService {
         product.setAttributes(request.getAttributes());
         product.setImages(request.getImages());
         product.setCollege(seller.getCollege());
-        product.setAiSuggestedPrice(request.getSellingPrice());
+        BigDecimal aiPrice = mlService.predictPrice(
+                request.getCategory(),
+                request.getCondition(),
+                request.getOriginalPrice(),
+                request.getAgeMonths()
+        );
+
+        // If ML works → use AI price, else fallback to selling price
+        product.setAiSuggestedPrice(
+                aiPrice != null ? aiPrice : request.getSellingPrice()
+        );
 
         product = productRepository.save(product);
 
