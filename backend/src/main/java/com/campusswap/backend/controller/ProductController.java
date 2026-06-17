@@ -161,4 +161,19 @@ public class ProductController {
                     .body(Map.of("error", e.getMessage()));
         }
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateProduct(
+            @PathVariable String id,
+            @Valid @RequestBody ProductRequest request,
+            Authentication authentication) {
+        try {
+            ProductResponse response = productService.updateProduct(
+                    UUID.fromString(id), request, authentication.getName());
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
 }

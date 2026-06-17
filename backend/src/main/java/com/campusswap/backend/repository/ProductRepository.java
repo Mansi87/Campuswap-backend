@@ -60,12 +60,11 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
         SELECT p FROM Product p
         WHERE p.college = :college
         AND p.isSold = false
-        AND p.seller.id != :userId
-        AND (:keyword IS NULL OR
-             LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR
-             LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
-        AND (:category IS NULL OR p.category = :category)
-        AND (:condition IS NULL OR p.condition = :condition)
+        AND ((:keyword = '') OR
+             LOWER(CAST(p.title AS string)) LIKE LOWER(CONCAT('%', :keyword, '%'))
+             OR LOWER(CAST(p.description AS string)) LIKE LOWER(CONCAT('%', :keyword, '%')))
+        AND ((:category = '') OR p.category = :category)
+        AND ((:condition = '') OR p.condition = :condition)
         AND (:minPrice IS NULL OR p.sellingPrice >= :minPrice)
         AND (:maxPrice IS NULL OR p.sellingPrice <= :maxPrice)
         ORDER BY p.createdAt DESC

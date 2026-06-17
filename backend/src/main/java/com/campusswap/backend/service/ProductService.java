@@ -146,6 +146,32 @@ public class ProductService {
         productRepository.delete(product);
     }
 
+    @Transactional
+    public ProductResponse updateProduct(UUID productId, ProductRequest request, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (!product.getSeller().getId().equals(user.getId())) {
+            throw new RuntimeException("Not authorized");
+        }
+
+        product.setTitle(request.getTitle());
+        product.setDescription(request.getDescription());
+        product.setCategory(request.getCategory());
+        product.setCondition(request.getCondition());
+        product.setOriginalPrice(request.getOriginalPrice());
+        product.setSellingPrice(request.getSellingPrice());
+        product.setAgeMonths(request.getAgeMonths());
+        product.setImages(request.getImages());
+        product.setUpdatedAt(LocalDateTime.now());
+
+        product = productRepository.save(product);
+        return mapToResponse(product);
+    }
+
     public List<ProductResponse> searchProducts(
             String userEmail,
             String keyword,
@@ -157,13 +183,9 @@ public class ProductService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Clean up keyword
-        String cleanKeyword = (keyword != null && !keyword.trim().isEmpty())
-                ? keyword.trim() : null;
-
-        //Clean up other filters
-        String cleanCategory  = (category  != null && !category.trim().isEmpty())  ? category.trim()  : null;
-        String cleanCondition = (condition != null && !condition.trim().isEmpty()) ? condition.trim() : null;
+        String cleanKeyword   = (keyword   != null && !keyword.trim().isEmpty())   ? keyword.trim()   : "";
+        String cleanCategory  = (category  != null && !category.trim().isEmpty())  ? category.trim()  : "";
+        String cleanCondition = (condition != null && !condition.trim().isEmpty()) ? condition.trim() : "";
 
         List<Product> products = productRepository.searchProducts(
                 user.getCollege(),
