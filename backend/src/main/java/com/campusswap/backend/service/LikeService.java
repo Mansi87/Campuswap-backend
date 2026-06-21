@@ -10,6 +10,7 @@ import com.campusswap.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.campusswap.backend.model.Notification;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,11 +23,11 @@ public class LikeService {
     private final LikeRepository likeRepository;
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
+    private final NotificationService notificationService;
 
     // Like a product (Swipe Right)
     @Transactional
     public String likeProduct(UUID productId, String userEmail) {
-        // Get user
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -43,6 +44,16 @@ public class LikeService {
         like.setUser(user);
         like.setProduct(product);
         likeRepository.save(like);
+
+        // Notify seller (only if liker isn't the seller themselves)
+        if (!product.getSeller().getId().equals(user.getId())) {
+            notificationService.createNotification(
+                    product.getSeller(),
+                    "LIKE",
+                    user.getFullName() + " liked your \"" + product.getTitle() + "\"",
+                    product.getId().toString()
+            );
+        }
 
         return "Product liked successfully";
     }

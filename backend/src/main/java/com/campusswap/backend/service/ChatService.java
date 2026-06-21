@@ -2,6 +2,7 @@ package com.campusswap.backend.service;
 
 import com.campusswap.backend.model.ChatMessage;
 import com.campusswap.backend.repository.ChatMessageRepository;
+import com.campusswap.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,8 @@ import java.util.UUID;
 public class ChatService {
 
     private final ChatMessageRepository chatMessageRepository;
+    private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     // Save a new message
     public ChatMessage saveMessage(UUID senderId, UUID receiverId,
@@ -26,7 +29,21 @@ public class ChatService {
         message.setContent(content);
         message.setSentAt(LocalDateTime.now());
         message.setIsRead(false);
-        return chatMessageRepository.save(message);
+        ChatMessage saved = chatMessageRepository.save(message);
+
+        // Notify receiver
+        userRepository.findById(receiverId).ifPresent(receiver -> {
+            userRepository.findById(senderId).ifPresent(sender -> {
+                notificationService.createNotification(
+                        receiver,
+                        "MESSAGE",
+                        sender.getFullName() + " sent you a new message",
+                        senderId.toString() + ":" + productId.toString()
+                );
+            });
+        });
+
+        return saved;
     }
 
     // Get conversation history
