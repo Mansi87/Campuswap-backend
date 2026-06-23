@@ -53,6 +53,20 @@ public class FileUploadService {
         );
     }
 
+    public String uploadPdf(MultipartFile file, String folder) {
+        try {
+            Map<String, Object> options = new HashMap<>();
+            options.put("folder", folder);
+            options.put("resource_type", "raw"); // PDF needs "raw" not "image"
+            options.put("format", "pdf");
+
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), options);
+            return (String) uploadResult.get("secure_url");
+        } catch (Exception e) {
+            throw new RuntimeException("PDF upload failed: " + e.getMessage());
+        }
+    }
+
     // Upload multiple images
     public List<FileUploadResponse> uploadImages(List<MultipartFile> files, String folder) throws IOException {
         // Max 4 images
