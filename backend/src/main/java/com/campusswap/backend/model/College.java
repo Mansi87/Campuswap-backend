@@ -26,5 +26,7 @@ public class College {
 
     private String location;
 
+    private String city;
+
     private Boolean isActive = true;
 }
