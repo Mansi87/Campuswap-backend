@@ -28,9 +28,11 @@ jobs:
         distribution: 'temurin'
         cache: maven
     - name: Build with Maven
-      env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: mvn -B package --file backend/pom.xml
+
+    - name: Deploy to Render
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      run: curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
 
     # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
     - name: Update dependency graph
